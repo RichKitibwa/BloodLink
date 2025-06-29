@@ -1,20 +1,19 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
+    env_file: .env
     environment:
-      POSTGRES_DB: bloodlink_db
-      POSTGRES_USER: bloodlink_user
-      POSTGRES_PASSWORD: bloodlink_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bloodlink_user -d bloodlink_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -30,15 +29,13 @@ services:
 
   # FastAPI Backend
   backend:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
-    environment:
-      - DATABASE_URL=postgresql://bloodlink_user:bloodlink_password@postgres:5432/bloodlink_db
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=your-secret-key-change-in-production
-      - ENVIRONMENT=development
+    env_file: .env
     ports:
-      - "8000:8000"
+      - "8002:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +47,9 @@ services:
         while ! nc -z postgres 5432; do sleep 1; done &&
         echo 'Database is ready!' &&
         alembic upgrade head &&
+        echo 'Seeding database with test data...' &&
+        python seed_data.py &&
+        echo 'Starting API server...' &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 
@@ -60,9 +60,9 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8002
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -76,3 +76,4 @@ volumes:
 networks:
   default:
     name: bloodlink_network 
+    

@@ -1,10 +1,12 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import List
 import secrets
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Settings(BaseSettings):
-    """Simple application settings"""
     
     # App
     APP_NAME: str = "BloodLink"
@@ -13,22 +15,29 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    # Security
-    SECRET_KEY: str = secrets.token_urlsafe(32)
+    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # Database
-    DATABASE_URL: str = "postgresql://bloodlink_user:bloodlink_password@localhost:5432/bloodlink_db"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", 
+        "postgresql://bloodlink_user:bloodlink_password@localhost:5432/bloodlink_db"
+    )
     
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
-    # CORS
-    CORS_ORIGINS: list = ["http://localhost:3000"]
+    # CORS origins - let pydantic handle the parsing
+    CORS_ORIGINS: str = "http://localhost:3001,http://localhost:3000,http://localhost:5173"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Convert CORS_ORIGINS string to list"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        case_sensitive = True
 
 
 # Global settings instance

@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.models import Base
-from app.database import DATABASE_URL
 
 load_dotenv()
 

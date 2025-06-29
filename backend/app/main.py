@@ -22,7 +22,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,12 +34,12 @@ app.include_router(bloodstock.router, prefix="/api/bloodstock", tags=["bloodstoc
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 
 # Authentication endpoints
-@app.post("/api/auth/token", response_model=schemas.Token)
+@app.post("/api/auth/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """Authenticate user and return access token"""
+    """Authenticate user and return access token with user info"""
     user = auth.authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -56,8 +56,25 @@ async def login_for_access_token(
     
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role,
+            "hospital_id": user.hospital_id,
+            "hospital_name": user.hospital.name if user.hospital else None
+        }
     }
+
+@app.post("/api/auth/register", response_model=schemas.User)
+async def register_user(
+    user_data: schemas.UserCreate,
+    db: Session = Depends(get_db)
+):
+    """Register a new user"""
+    return auth.create_user(db, user_data)
 
 # Health check endpoint
 @app.get("/api/health")
@@ -72,5 +89,6 @@ async def root():
     return {
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "description": "Uganda Blood Donation Management System",
         "docs": "/docs"
     }
