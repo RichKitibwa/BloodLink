@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
+import BloodSearch from './components/BloodSearch';
+import BloodStockManagement from './components/BloodStockManagement';
+import Layout from './components/Layout';
 import './App.css';
 
 // Loading component
@@ -77,7 +80,31 @@ const AppRoutes: React.FC = () => {
         path="/dashboard" 
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <Layout>
+              <Dashboard />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/search" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <BloodSearch />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/manage-stock" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <BloodStockManagement />
+            </Layout>
           </ProtectedRoute>
         } 
       />

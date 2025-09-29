@@ -2,10 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from .. import models, schemas, auth
 from ..database import get_db
+
+def get_utc_now():
+    """Get current UTC datetime that's timezone-aware"""
+    return datetime.now(timezone.utc)
+
+def make_timezone_aware(dt):
+    """Make a datetime timezone-aware if it isn't already"""
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 router = APIRouter()
 
@@ -135,10 +145,17 @@ async def add_blood_stock(
         )
     
     # Check if already expired
-    is_expired = stock_data.expiry_date <= datetime.now()
+    now = get_utc_now()
+    expiry_date = make_timezone_aware(stock_data.expiry_date)
+    is_expired = expiry_date <= now
+    
+    # Ensure we set hospital_id for the current user's hospital
+    stock_data_dict = stock_data.dict()
+    if current_user.hospital_id:
+        stock_data_dict['hospital_id'] = current_user.hospital_id
     
     stock = models.BloodStock(
-        **stock_data.dict(),
+        **stock_data_dict,
         is_expired=is_expired
     )
     
@@ -168,7 +185,9 @@ async def update_blood_stock(
         setattr(stock, field, value)
     
     # Auto-expire if past expiry date
-    if stock.expiry_date <= datetime.now():
+    now = get_utc_now()
+    expiry_date = make_timezone_aware(stock.expiry_date)
+    if expiry_date <= now:
         stock.is_expired = True
     
     db.commit()
@@ -212,6 +231,139 @@ async def allocate_blood_stock(
     db.commit()
     
     return {"message": f"Successfully allocated {units} units to hospital"}
+
+@router.get("/search", response_model=List[schemas.BloodStockSearchResult])
+async def search_blood_stock(
+    blood_type: Optional[str] = Query(None, description="Blood type to search for (e.g., A+, B-, O+)"),
+    component: Optional[str] = Query(None, description="Blood component type"),
+    region: Optional[str] = Query(None, description="Filter by region (Central, Northern, Western, Eastern)"),
+    district: Optional[str] = Query(None, description="Filter by specific district"),
+    hospital_name: Optional[str] = Query(None, description="Search by hospital name (partial match)"),
+    min_units: int = Query(1, ge=1, description="Minimum number of units required"),
+    max_distance_km: Optional[int] = Query(None, ge=1, le=500, description="Maximum distance in kilometers from user's location"),
+    exclude_expired: bool = Query(True, description="Exclude expired blood stock"),
+    exclude_near_expiry: bool = Query(False, description="Exclude stock expiring within 3 days"),
+    sort_by: str = Query("distance", description="Sort results by: distance, expiry_date, units_available"),
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Search for available blood stock by type and location from all hospitals.
+    Laboratory technologists can find compatible blood matches for patients.
+    """
+    # Base query for available blood stock with hospital information
+    query = db.query(
+        models.BloodStock,
+        models.Hospital
+    ).join(
+        models.Hospital, 
+        models.BloodStock.hospital_id == models.Hospital.id,
+        isouter=True
+    ).filter(
+        models.BloodStock.units_available >= min_units,
+        models.BloodStock.is_reserved == False
+    )
+    
+    # Apply blood type filter
+    if blood_type:
+        query = query.filter(models.BloodStock.blood_type == blood_type)
+    
+    # Apply component filter
+    if component:
+        query = query.filter(models.BloodStock.component == component)
+    
+    # Apply expiry filters
+    if exclude_expired:
+        query = query.filter(models.BloodStock.is_expired == False)
+        query = query.filter(models.BloodStock.expiry_date > get_utc_now())
+    
+    if exclude_near_expiry:
+        near_expiry_threshold = get_utc_now() + timedelta(days=3)
+        query = query.filter(models.BloodStock.expiry_date > near_expiry_threshold)
+    
+    # Apply location filters
+    if region:
+        query = query.filter(models.Hospital.region.ilike(f"%{region}%"))
+    
+    if district:
+        query = query.filter(models.Hospital.district.ilike(f"%{district}%"))
+    
+    if hospital_name:
+        query = query.filter(models.Hospital.name.ilike(f"%{hospital_name}%"))
+    
+    # Filter to show only active hospitals
+    query = query.filter(models.Hospital.is_active == True)
+    
+    # Execute query
+    results = query.all()
+    
+    # Process results into response format
+    search_results = []
+    user_hospital = current_user.hospital
+    
+    for stock, hospital in results:
+        if not hospital:  # Skip if no hospital (shouldn't happen with proper data)
+            continue
+            
+        # Calculate days to expiry
+        expiry_date = make_timezone_aware(stock.expiry_date)
+        days_to_expiry = (expiry_date - get_utc_now()).days if expiry_date else 0
+        
+        # Determine availability status
+        availability_status = "Available"
+        if days_to_expiry <= 3:
+            availability_status = "Expires Soon"
+        elif days_to_expiry <= 0:
+            availability_status = "Expired"
+        
+        # Calculate approximate distance (simplified - in real app would use GPS coordinates)
+        distance_km = None
+        if user_hospital and hospital:
+            # Simple distance estimation based on region/district
+            if user_hospital.region == hospital.region:
+                if user_hospital.district == hospital.district:
+                    distance_km = 5  # Same district
+                else:
+                    distance_km = 50  # Same region, different district
+            else:
+                distance_km = 200  # Different region
+        
+        # Apply distance filter if specified
+        if max_distance_km and distance_km and distance_km > max_distance_km:
+            continue
+        
+        search_results.append({
+            "stock_id": stock.id,
+            "blood_type": stock.blood_type.value,
+            "component": stock.component.value,
+            "units_available": stock.units_available,
+            "expiry_date": stock.expiry_date,
+            "days_to_expiry": days_to_expiry,
+            "donation_date": stock.donation_date,
+            "batch_number": stock.batch_number,
+            "source_location": stock.source_location,
+            "availability_status": availability_status,
+            "hospital_id": hospital.id,
+            "hospital_name": hospital.name,
+            "hospital_code": hospital.hospital_code,
+            "hospital_address": hospital.address,
+            "hospital_district": hospital.district,
+            "hospital_region": hospital.region,
+            "hospital_phone": hospital.phone,
+            "hospital_email": hospital.email,
+            "estimated_distance_km": distance_km,
+            "is_same_hospital": hospital.id == current_user.hospital_id if current_user.hospital_id else False
+        })
+    
+    # Sort results
+    if sort_by == "distance" and search_results:
+        search_results.sort(key=lambda x: x["estimated_distance_km"] or 999)
+    elif sort_by == "expiry_date":
+        search_results.sort(key=lambda x: x["expiry_date"])
+    elif sort_by == "units_available":
+        search_results.sort(key=lambda x: x["units_available"], reverse=True)
+    
+    return search_results
 
 @router.get("/alerts")
 async def get_stock_alerts(

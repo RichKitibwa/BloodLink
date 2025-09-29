@@ -140,9 +140,50 @@ export const ordersAPI = {
   },
 };
 
+export interface BloodSearchParams {
+  blood_type?: string;
+  component?: string;
+  region?: string;
+  district?: string;
+  hospital_name?: string;
+  min_units?: number;
+  max_distance_km?: number;
+  exclude_expired?: boolean;
+  exclude_near_expiry?: boolean;
+  sort_by?: string;
+}
+
+export interface BloodSearchResult {
+  stock_id: number;
+  blood_type: string;
+  component: string;
+  units_available: number;
+  expiry_date: string;
+  days_to_expiry: number;
+  donation_date: string;
+  batch_number: string;
+  source_location?: string;
+  availability_status: string;
+  hospital_id: number;
+  hospital_name: string;
+  hospital_code: string;
+  hospital_address?: string;
+  hospital_district?: string;
+  hospital_region?: string;
+  hospital_phone?: string;
+  hospital_email: string;
+  estimated_distance_km?: number;
+  is_same_hospital: boolean;
+}
+
 export const bloodstockAPI = {
   async getStock(params?: any) {
     const response = await api.get('/bloodstock', { params });
+    return response.data;
+  },
+
+  async searchBloodStock(params: BloodSearchParams) {
+    const response = await api.get('/bloodstock/search', { params });
     return response.data;
   },
 

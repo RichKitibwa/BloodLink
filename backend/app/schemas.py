@@ -297,3 +297,33 @@ class OrderFilter(BaseModel):
     blood_type: Optional[BloodTypeEnum] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+
+class BloodStockSearchResult(BaseModel):
+    """Blood stock search result with hospital location information"""
+    stock_id: int
+    blood_type: str
+    component: str
+    units_available: int
+    expiry_date: datetime
+    days_to_expiry: int
+    donation_date: datetime
+    batch_number: str
+    source_location: Optional[str] = None
+    availability_status: str  # Available, Expires Soon, Expired
+    
+    # Hospital information
+    hospital_id: int
+    hospital_name: str
+    hospital_code: str
+    hospital_address: Optional[str] = None
+    hospital_district: Optional[str] = None
+    hospital_region: Optional[str] = None
+    hospital_phone: Optional[str] = None
+    hospital_email: str
+    
+    # Distance and location context
+    estimated_distance_km: Optional[int] = None
+    is_same_hospital: bool = False
+
+    class Config:
+        orm_mode = True

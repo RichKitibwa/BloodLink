@@ -184,8 +184,8 @@ def create_sample_users(db: Session, hospitals: list):
     
     return created_users
 
-def create_sample_blood_stock(db: Session):
-    """Create sample blood stock data"""
+def create_sample_blood_stock(db: Session, hospitals: list):
+    """Create sample blood stock data distributed across hospitals"""
     blood_types = [models.BloodType.O_POSITIVE, models.BloodType.A_POSITIVE, 
                    models.BloodType.B_POSITIVE, models.BloodType.AB_POSITIVE,
                    models.BloodType.O_NEGATIVE, models.BloodType.A_NEGATIVE]
@@ -196,36 +196,76 @@ def create_sample_blood_stock(db: Session):
     stock_data = []
     batch_counter = 1
     
-    for blood_type in blood_types:
-        for component in components:
-            # Create stock expiring soon (for alerts)
-            near_expiry_stock = models.BloodStock(
+    # Create blood stock for each hospital
+    for hospital in hospitals:
+        print(f"Creating blood stock for {hospital.name}...")
+        
+        for blood_type in blood_types:
+            for component in components:
+                # Create stock expiring soon (for alerts) - some hospitals
+                if batch_counter % 3 == 0:  # Every 3rd batch expires soon
+                    near_expiry_stock = models.BloodStock(
+                        blood_type=blood_type,
+                        component=component,
+                        units_available=5,
+                        expiry_date=datetime.now() + timedelta(days=3),
+                        donation_date=datetime.now() - timedelta(days=30),
+                        batch_number=f"BL{batch_counter:04d}",
+                        source_location="Uganda Blood Transfusion Service",
+                        hospital_id=hospital.id,  # Link to specific hospital
+                        is_expired=False,
+                        is_reserved=False
+                    )
+                    stock_data.append(near_expiry_stock)
+                    batch_counter += 1
+                
+                # Create normal stock with varying quantities based on hospital
+                base_units = 15
+                if hospital.region == "Central":
+                    base_units = 25  # Central hospitals have more stock
+                elif hospital.region == "Northern":
+                    base_units = 12
+                elif hospital.region == "Western":
+                    base_units = 18
+                else:
+                    base_units = 10
+                
+                # Add some randomness but ensure minimum availability
+                import random
+                units = max(5, base_units + random.randint(-5, 10))
+                
+                normal_stock = models.BloodStock(
+                    blood_type=blood_type,
+                    component=component,
+                    units_available=units,
+                    expiry_date=datetime.now() + timedelta(days=random.randint(15, 60)),
+                    donation_date=datetime.now() - timedelta(days=random.randint(1, 14)),
+                    batch_number=f"BL{batch_counter:04d}",
+                    source_location="Uganda Blood Transfusion Service",
+                    hospital_id=hospital.id,  # Link to specific hospital
+                    is_expired=False,
+                    is_reserved=False
+                )
+                stock_data.append(normal_stock)
+                batch_counter += 1
+    
+    # Also create some unallocated/central blood bank stock (hospital_id=None)
+    print("Creating central blood bank stock...")
+    for blood_type in blood_types[:4]:  # Only create for common types
+        for component in components[:2]:  # Only whole blood and packed cells
+            central_stock = models.BloodStock(
                 blood_type=blood_type,
                 component=component,
-                units_available=5,
-                expiry_date=datetime.now() + timedelta(days=3),
-                donation_date=datetime.now() - timedelta(days=30),
-                batch_number=f"BL{batch_counter:04d}",
-                source_location="Uganda Blood Transfusion Service",
+                units_available=50,  # Large quantities at central blood bank
+                expiry_date=datetime.now() + timedelta(days=45),
+                donation_date=datetime.now() - timedelta(days=2),
+                batch_number=f"CBB{batch_counter:04d}",
+                source_location="Uganda Blood Transfusion Service - Central",
+                hospital_id=None,  # Central stock not allocated to specific hospital
                 is_expired=False,
                 is_reserved=False
             )
-            stock_data.append(near_expiry_stock)
-            batch_counter += 1
-            
-            # Create normal stock
-            normal_stock = models.BloodStock(
-                blood_type=blood_type,
-                component=component,
-                units_available=15,
-                expiry_date=datetime.now() + timedelta(days=30),
-                donation_date=datetime.now() - timedelta(days=5),
-                batch_number=f"BL{batch_counter:04d}",
-                source_location="Uganda Blood Transfusion Service",
-                is_expired=False,
-                is_reserved=False
-            )
-            stock_data.append(normal_stock)
+            stock_data.append(central_stock)
             batch_counter += 1
     
     # Add stock to database
@@ -241,6 +281,20 @@ def create_sample_blood_stock(db: Session):
     
     db.commit()
     print(f"Created {len(created_stock)} blood stock entries")
+    
+    # Print summary by hospital
+    print("\n📊 Blood Stock Summary:")
+    for hospital in hospitals:
+        hospital_stock = db.query(models.BloodStock).filter(
+            models.BloodStock.hospital_id == hospital.id
+        ).count()
+        print(f"  {hospital.name}: {hospital_stock} batches")
+    
+    central_stock = db.query(models.BloodStock).filter(
+        models.BloodStock.hospital_id.is_(None)
+    ).count()
+    print(f"  Central Blood Bank: {central_stock} batches")
+    
     return created_stock
 
 def main():
@@ -257,7 +311,7 @@ def main():
         # Create sample data
         hospitals = create_sample_hospitals(db)
         users = create_sample_users(db, hospitals)
-        stock = create_sample_blood_stock(db)
+        stock = create_sample_blood_stock(db, hospitals)
         
         print(f"\n✅ Seeding completed successfully!")
         print(f"Created {len(hospitals)} hospitals")

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql://bloodlink_user:bloodlink_password@localhost:5432/bloodlink_db"
+        "postgresql://bloodlink_user:bloodlink_password@localhost:5433/bloodlink_db"
     )
     
     # Redis

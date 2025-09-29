@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI, ordersAPI, bloodstockAPI } from '../services/api';
 import { 
-  Heart, 
   DropletIcon, 
   AlertTriangle, 
   Clock, 
   Users, 
   Building2,
-  LogOut,
   Bell,
   TrendingUp,
   Calendar,
@@ -28,7 +26,7 @@ interface DashboardData {
 }
 
 const Dashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [emergencies, setEmergencies] = useState<any[]>([]);
   const [stockAlerts, setStockAlerts] = useState<any[]>([]);
@@ -84,41 +82,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <div className="h-10 w-10 bg-gradient-to-r from-blood-500 to-blood-600 rounded-lg flex items-center justify-center">
-                <Heart className="h-6 w-6 text-white fill-white" />
-              </div>
-              <div className="ml-3">
-                <h1 className="text-xl font-semibold text-neutral-900">BloodLink</h1>
-                <p className="text-sm text-neutral-600">
-                  {dashboardData?.hospital.name}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Bell className="h-5 w-5 text-neutral-400" />
-                <span className="text-sm text-neutral-600">
-                  Welcome, {user?.full_name || user?.username}
-                </span>
-              </div>
-              <button
-                onClick={logout}
-                className="btn btn-outline text-sm"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Emergency Alerts */}
       {emergencies.length > 0 && (
         <div className="bg-blood-600 text-white">
@@ -245,22 +208,31 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Quick Actions */}
+                    {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
               <h3 className="text-lg font-semibold text-neutral-900">Quick Actions</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button className="btn btn-primary flex items-center justify-center py-4">
+              <button 
+                onClick={() => window.location.href = '/search'}
+                className="btn btn-primary flex items-center justify-center py-4"
+              >
                 <DropletIcon className="h-5 w-5 mr-2" />
-                Request Blood
+                Search Blood
               </button>
+              {(user?.role === 'admin' || user?.role === 'blood_bank_staff') && (
+                <button 
+                  onClick={() => window.location.href = '/manage-stock'}
+                  className="btn btn-secondary flex items-center justify-center py-4"
+                >
+                  <Building2 className="h-5 w-5 mr-2" />
+                  Manage Stock
+                </button>
+              )}
               <button className="btn btn-danger flex items-center justify-center py-4">
                 <AlertTriangle className="h-5 w-5 mr-2" />
                 Emergency Request
-              </button>
-              <button className="btn btn-secondary flex items-center justify-center py-4">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                View Inventory
               </button>
               <button className="btn btn-outline flex items-center justify-center py-4">
                 <Calendar className="h-5 w-5 mr-2" />

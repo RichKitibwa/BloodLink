@@ -1,8 +1,8 @@
-# BloodLink Uganda 🩸
+# BloodLink Uganda
 
 A modern blood donation management system designed to address blood scarcity in Uganda's national blood bank. BloodLink helps hospitals manage blood requests, track inventory, handle emergencies, and coordinate between different healthcare facilities.
 
-## 🌟 Features
+##Features
 
 ### Core Functionality
 - **Hospital Code Authentication** - Secure login with hospital-specific codes
@@ -19,7 +19,7 @@ A modern blood donation management system designed to address blood scarcity in 
 - **Dashboard Analytics** - Visual overview of orders, stock, and emergencies
 - **Professional Medical Interface** - User-friendly design that reduces anxiety
 
-## 🏗️ Architecture
+## Architecture
 
 - **Backend**: FastAPI with PostgreSQL, JWT authentication, SQLAlchemy ORM
 - **Frontend**: React 18 with TypeScript, Tailwind CSS, React Router
@@ -27,7 +27,7 @@ A modern blood donation management system designed to address blood scarcity in 
 - **Authentication**: JWT tokens with role-based access control
 - **Containerization**: Docker and Docker Compose for easy deployment
 
-## 🚀 Quick Setup
+## Quick Setup
 
 ### Prerequisites
 - Python 3.9+
@@ -56,7 +56,8 @@ source bloodlinkenv/bin/activate  # On Windows: bloodlinkenv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up environment variables
+# Set up environment variables 
+# place .env in the root directory
 cp ../env.example .env
 # Edit .env with your database credentials
 
@@ -98,7 +99,7 @@ The application will be available at:
 - **Backend API**: http://localhost:8001
 - **API Documentation**: http://localhost:8001/docs
 
-## 🔐 Test Credentials
+##Test Credentials
 
 After running the seed script, you can login with these test accounts:
 
@@ -108,14 +109,14 @@ After running the seed script, you can login with these test accounts:
 | staff@nakasero.com | staff123 | Hospital Staff | Nakasero Hospital |
 | bloodbank@mengo.ug | mengo123 | Hospital Staff | Mengo Hospital |
 
-## 🏥 Hospital Codes Format
+##Hospital Codes Format
 
 The system uses a specific format for hospital codes:
 - **G** = Government hospitals (e.g., GMUL2024)
 - **P** = Private hospitals (e.g., PNAK2024)  
 - **N** = Non-profit hospitals (e.g., NMEN2024)
 
-## 📊 Key Components
+## Key Components
 
 ### Dashboard Features
 - **Pending Orders Count** - Track blood requests awaiting approval
@@ -136,7 +137,7 @@ The system uses a specific format for hospital codes:
 - **Contact Information** - Direct communication channels
 - **Deadline Management** - Time-sensitive request handling
 
-## 🛠️ Development
+## Development
 
 ### Backend Development
 ```bash
@@ -174,7 +175,7 @@ npm run lint
 npm run type-check
 ```
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ```bash
 # Build and start all services
@@ -187,7 +188,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## 📝 API Documentation
+## API Documentation
 
 The API documentation is automatically generated and available at:
 - **Swagger UI**: http://localhost:8001/docs
@@ -212,7 +213,7 @@ This system is specifically designed for Uganda's healthcare environment:
 - **Mobile-First** - Optimized for mobile usage in rural areas
 - **Offline Capability** - Future-ready for intermittent connectivity
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -233,36 +234,4 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 CORS_ORIGINS=http://localhost:3001,http://localhost:3000,http://localhost:5173
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in this repository
-- Contact the development team
-- Check the documentation at `/docs`
-
-## 🎯 Roadmap
-
-- [ ] SMS notifications integration
-- [ ] Mobile app development
-- [ ] Advanced analytics dashboard
-- [ ] Multi-language support
-- [ ] Offline synchronization
-- [ ] Integration with national health systems
-- [ ] Blood donation campaign management
-- [ ] Volunteer donor tracking
-
----
-
-**BloodLink Uganda** - Saving lives through better blood management 🩸❤️ 
+**BloodLink Uganda** - Saving lives through better blood management
