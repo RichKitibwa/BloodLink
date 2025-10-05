@@ -26,11 +26,17 @@ async def list_blood_stock(
     blood_type: Optional[str] = Query(None),
     component: Optional[str] = Query(None),
     exclude_expired: bool = Query(True),
+    exclude_reserved: bool = Query(False),
     near_expiry_days: int = Query(7),
+    my_hospital_only: bool = Query(True, description="If true, only show current hospital's stock"),
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """List blood stock with filtering and expiry tracking"""
+    """
+    List blood stock with filtering and expiry tracking.
+    By default, shows only the current user's hospital stock.
+    Set my_hospital_only=false to search across all hospitals (for blood search feature).
+    """
     query = db.query(models.BloodStock)
     
     # Apply filters
@@ -40,15 +46,13 @@ async def list_blood_stock(
         query = query.filter(models.BloodStock.component == component)
     if exclude_expired:
         query = query.filter(models.BloodStock.is_expired == False)
+    if exclude_reserved:
+        query = query.filter(models.BloodStock.is_reserved == False)
     
-    # Hospital staff can only see their hospital's allocated stock
-    if current_user.role == models.UserRole.HOSPITAL_STAFF:
-        query = query.filter(
-            or_(
-                models.BloodStock.hospital_id == current_user.hospital_id,
-                models.BloodStock.hospital_id.is_(None)  # Available stock
-            )
-        )
+    if my_hospital_only and current_user.hospital_id:
+        # Only show current hospital's stock
+        query = query.filter(models.BloodStock.hospital_id == current_user.hospital_id)
+    # else: show all hospitals' stock (for blood search across system)
     
     stock = query.order_by(models.BloodStock.expiry_date).offset(skip).limit(limit).all()
     return stock
@@ -71,8 +75,8 @@ async def get_near_expiry_stock(
         )
     )
     
-    # Hospital staff can only see their hospital's stock
-    if current_user.role == models.UserRole.HOSPITAL_STAFF:
+    # Users with hospital association see only their hospital's stock
+    if current_user.hospital_id:
         query = query.filter(models.BloodStock.hospital_id == current_user.hospital_id)
     
     near_expiry = query.order_by(models.BloodStock.expiry_date).all()
@@ -103,8 +107,8 @@ async def get_blood_stock_summary(
         models.BloodStock.units_available > 0
     )
     
-    # Hospital staff can only see their hospital's stock
-    if current_user.role == models.UserRole.HOSPITAL_STAFF:
+    # Users with hospital association see only their hospital's stock
+    if current_user.hospital_id:
         query = query.filter(models.BloodStock.hospital_id == current_user.hospital_id)
     
     results = query.group_by(
@@ -390,7 +394,7 @@ async def get_stock_alerts(
         days_to_expiry = (stock.expiry_date - datetime.now()).days
         alerts.append({
             "type": "NEAR_EXPIRY",
-            "severity": "WARNING" if days_to_expiry > 3 else "CRITICAL",
+            "severity": "WARNING" if days_to_expiry > 5 else "CRITICAL",
             "message": f"{stock.units_available} units of {stock.blood_type.value} {stock.component.value} expiring in {days_to_expiry} days",
             "blood_type": stock.blood_type,
             "component": stock.component,

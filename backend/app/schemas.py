@@ -327,3 +327,119 @@ class BloodStockSearchResult(BaseModel):
 
     class Config:
         orm_mode = True
+
+# Donation Schedule schemas
+class DonationScheduleBase(BaseModel):
+    blood_stock_id: int
+    units_offered: int
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+
+class DonationScheduleCreate(BaseModel):
+    blood_stock_ids: List[int]  # Can schedule multiple stocks at once
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+
+class DonationSchedule(DonationScheduleBase):
+    id: int
+    donating_hospital_id: int
+    is_active: bool
+    is_critical_expiry: bool
+    created_by_user_id: int
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+    accepted_by_hospital_id: Optional[int] = None
+    accepted_at: Optional[datetime] = None
+    status: str
+    
+    # Include related data
+    blood_stock: Optional[BloodStock] = None
+    donating_hospital: Optional[Hospital] = None
+
+    class Config:
+        orm_mode = True
+
+class DonationScheduleWithDetails(BaseModel):
+    """Donation schedule with full details for display"""
+    id: int
+    units_offered: int
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+    is_critical_expiry: bool
+    status: str
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+    
+    # Blood stock details
+    blood_type: str
+    component: str
+    expiry_date: datetime
+    days_to_expiry: int
+    batch_number: str
+    
+    # Donating hospital details
+    donating_hospital_id: int
+    donating_hospital_name: str
+    donating_hospital_code: str
+    donating_hospital_region: Optional[str] = None
+    donating_hospital_district: Optional[str] = None
+    donating_hospital_phone: Optional[str] = None
+    donating_hospital_email: str
+
+# Blood Request schemas
+class BloodRequestBase(BaseModel):
+    blood_type: BloodTypeEnum
+    component: BloodComponentEnum
+    units_requested: int
+    priority: PriorityEnum = PriorityEnum.NORMAL
+    reason: Optional[str] = None
+    patient_details: Optional[str] = None
+    urgency_notes: Optional[str] = None
+    expected_use_date: Optional[datetime] = None
+
+class BloodRequestCreate(BloodRequestBase):
+    target_hospital_id: Optional[int] = None  # None means broadcast to all
+
+class BloodRequestUpdate(BaseModel):
+    status: Optional[OrderStatusEnum] = None
+    rejection_reason: Optional[str] = None
+
+class BloodRequest(BloodRequestBase):
+    id: int
+    requesting_hospital_id: int
+    target_hospital_id: Optional[int] = None
+    created_by_user_id: int
+    status: OrderStatusEnum
+    approved_by_user_id: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    fulfilled_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    requesting_hospital: Optional[Hospital] = None
+    target_hospital: Optional[Hospital] = None
+
+    class Config:
+        orm_mode = True
+
+# Blood Request Response schemas
+class BloodRequestResponseCreate(BaseModel):
+    units_offered: int
+    response_message: Optional[str] = None
+    estimated_availability: Optional[datetime] = None
+
+class BloodRequestResponse(BloodRequestResponseCreate):
+    id: int
+    blood_request_id: int
+    responding_hospital_id: int
+    responding_user_id: int
+    status: str
+    accepted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    responding_hospital: Optional[Hospital] = None
+
+    class Config:
+        orm_mode = True

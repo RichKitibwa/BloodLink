@@ -6,6 +6,7 @@ import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
 import BloodSearch from './components/BloodSearch';
 import BloodStockManagement from './components/BloodStockManagement';
+import AvailableDonations from './components/AvailableDonations';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -104,6 +105,17 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute>
             <Layout>
               <BloodStockManagement />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/donations" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AvailableDonations />
             </Layout>
           </ProtectedRoute>
         } 

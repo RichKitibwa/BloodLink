@@ -7,7 +7,7 @@ from datetime import timedelta
 from . import models, schemas, auth
 from .database import engine, get_db
 from .config import settings
-from .routers import users, bloodstock, orders
+from .routers import users, bloodstock, orders, donations, requests
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -32,6 +32,8 @@ app.add_middleware(
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(bloodstock.router, prefix="/api/bloodstock", tags=["bloodstock"])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
+app.include_router(donations.router, prefix="/api/donations", tags=["donations"])
+app.include_router(requests.router, prefix="/api/requests", tags=["requests"])
 
 # Authentication endpoints
 @app.post("/api/auth/token")

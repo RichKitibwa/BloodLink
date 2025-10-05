@@ -221,3 +221,98 @@ class AuditLog(Base):
     
     # Relationships
     user = relationship("User")
+
+class DonationSchedule(Base):
+    """
+    Tracks blood units scheduled for donation/transfer from one hospital to others.
+    Hospitals can schedule donations of excess or near-expiry blood.
+    """
+    __tablename__ = "donation_schedules"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    donating_hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False)
+    blood_stock_id = Column(Integer, ForeignKey("blood_stock.id"), nullable=False)
+    units_offered = Column(Integer, nullable=False)
+    reason = Column(String)  # e.g., "Near Expiry", "Excess Stock", "Emergency Response"
+    notes = Column(Text)
+    is_active = Column(Boolean, default=True, index=True)
+    is_critical_expiry = Column(Boolean, default=False)  # Auto-flagged if expiring within 3 days
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    expires_at = Column(DateTime)  # When this donation offer expires
+    
+    # If accepted by another hospital
+    accepted_by_hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=True)
+    accepted_at = Column(DateTime)
+    status = Column(String, default="AVAILABLE")  # AVAILABLE, RESERVED, ACCEPTED, CANCELLED
+    
+    # Relationships
+    donating_hospital = relationship("Hospital", foreign_keys=[donating_hospital_id])
+    blood_stock = relationship("BloodStock")
+    created_by_user = relationship("User")
+    accepted_by_hospital = relationship("Hospital", foreign_keys=[accepted_by_hospital_id])
+
+class BloodRequest(Base):
+    """
+    Tracks blood requests from one hospital to another (or multiple hospitals).
+    Hospital staff can request specific blood from other hospitals.
+    """
+    __tablename__ = "blood_requests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    requesting_hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False)
+    target_hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=True)  # Specific hospital or None for broadcast
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    blood_type = Column(Enum(BloodType), nullable=False, index=True)
+    component = Column(Enum(BloodComponent), nullable=False)
+    units_requested = Column(Integer, nullable=False)
+    priority = Column(Enum(Priority), default=Priority.NORMAL, index=True)
+    
+    reason = Column(Text)
+    patient_details = Column(Text)
+    urgency_notes = Column(Text)
+    expected_use_date = Column(DateTime)
+    
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING, index=True)
+    approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime)
+    fulfilled_at = Column(DateTime)
+    rejection_reason = Column(Text)
+    
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    requesting_hospital = relationship("Hospital", foreign_keys=[requesting_hospital_id])
+    target_hospital = relationship("Hospital", foreign_keys=[target_hospital_id])
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+    approved_by_user = relationship("User", foreign_keys=[approved_by_user_id])
+    responses = relationship("BloodRequestResponse", back_populates="blood_request")
+
+class BloodRequestResponse(Base):
+    """
+    Responses from hospitals to blood requests.
+    Multiple hospitals can respond to a single request.
+    """
+    __tablename__ = "blood_request_responses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    blood_request_id = Column(Integer, ForeignKey("blood_requests.id"), nullable=False)
+    responding_hospital_id = Column(Integer, ForeignKey("hospitals.id"), nullable=False)
+    responding_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    units_offered = Column(Integer, nullable=False)
+    response_message = Column(Text)
+    estimated_availability = Column(DateTime)
+    
+    status = Column(String, default="OFFERED")  # OFFERED, ACCEPTED, DECLINED
+    accepted_at = Column(DateTime)
+    
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    blood_request = relationship("BloodRequest", back_populates="responses")
+    responding_hospital = relationship("Hospital")
+    responding_user = relationship("User")

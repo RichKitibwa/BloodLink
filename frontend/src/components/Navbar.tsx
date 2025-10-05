@@ -10,7 +10,8 @@ import {
   Bell,
   User,
   Menu,
-  X
+  X,
+  Gift
 } from 'lucide-react';
 
 const Navbar: React.FC = () => {
@@ -30,6 +31,12 @@ const Navbar: React.FC = () => {
       name: 'Search Blood',
       path: '/search',
       icon: Search,
+      showForAll: true
+    },
+    {
+      name: 'Available Donations',
+      path: '/donations',
+      icon: Gift,
       showForAll: true
     },
     {

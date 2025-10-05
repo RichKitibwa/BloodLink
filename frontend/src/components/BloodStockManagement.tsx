@@ -3,20 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   Plus, 
   DropletIcon, 
-  Save, 
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-
-interface BloodStockForm {
-  blood_type: string;
-  component: string;
-  units_available: number;
-  expiry_date: string;
-  donation_date: string;
-  batch_number: string;
-  source_location: string;
-}
+import AddBloodComponent from './AddBloodComponent';
 
 interface BloodStock {
   id: number;
@@ -37,27 +27,24 @@ interface BloodStock {
   };
 }
 
+interface StockSummary {
+  blood_type: string;
+  component: string;
+  total_units: number;
+  near_expiry_units: number;
+  critical_level: boolean;
+}
+
 const BloodStockManagement: React.FC = () => {
   const { user } = useAuth();
   const [bloodStock, setBloodStock] = useState<BloodStock[]>([]);
+  const [stockSummary, setStockSummary] = useState<StockSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<BloodStockForm>({
-    blood_type: '',
-    component: '',
-    units_available: 1,
-    expiry_date: '',
-    donation_date: new Date().toISOString().split('T')[0],
-    batch_number: '',
-    source_location: 'Uganda Blood Transfusion Service'
-  });
-
-  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-  const components = ['Whole Blood', 'Packed Cells', 'Fresh Frozen Plasma', 'Platelets', 'Cryoprecipitate'];
 
   useEffect(() => {
     fetchBloodStock();
+    fetchStockSummary();
   }, []);
 
   const fetchBloodStock = async () => {
@@ -82,70 +69,29 @@ const BloodStockManagement: React.FC = () => {
     }
   };
 
-  const handleInputChange = (field: keyof BloodStockForm, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const generateBatchNumber = () => {
-    const prefix = 'BBK'; // Generic prefix for blood bank
-    const timestamp = Date.now().toString().slice(-6);
-    return `${prefix}${timestamp}`;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
+  const fetchStockSummary = async () => {
     try {
-      // Generate batch number if not provided
-      const batchNumber = formData.batch_number || generateBatchNumber();
-      
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8002/api/bloodstock', {
-        method: 'POST',
+      const response = await fetch('http://localhost:8002/api/bloodstock/summary', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          batch_number: batchNumber,
-          expiry_date: new Date(formData.expiry_date).toISOString(),
-          donation_date: new Date(formData.donation_date).toISOString(),
-        }),
       });
 
       if (response.ok) {
-        const newStock = await response.json();
-        setBloodStock(prev => [newStock, ...prev]);
-        setShowAddForm(false);
-        resetForm();
-        alert('Blood stock added successfully!');
-      } else {
-        const error = await response.json();
-        alert(`Failed to add blood stock: ${error.detail || 'Unknown error'}`);
+        const data = await response.json();
+        setStockSummary(data);
       }
     } catch (error) {
-      console.error('Failed to add blood stock:', error);
-      alert('Failed to add blood stock. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Failed to fetch stock summary:', error);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      blood_type: '',
-      component: '',
-      units_available: 1,
-      expiry_date: '',
-      donation_date: new Date().toISOString().split('T')[0],
-      batch_number: '',
-      source_location: 'Uganda Blood Transfusion Service'
-    });
+  const handleAddSuccess = () => {
+    setShowAddForm(false);
+    fetchBloodStock(); // Refresh the list
+    fetchStockSummary(); // Refresh the summary
   };
 
   const getStatusColor = (stock: BloodStock) => {
@@ -199,6 +145,73 @@ const BloodStockManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-neutral-50">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Total Units Card */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-600">Total Units</p>
+                <p className="text-3xl font-bold text-neutral-900">
+                  {stockSummary.reduce((sum, item) => sum + item.total_units, 0)}
+                </p>
+              </div>
+              <div className="p-3 bg-blood-100 rounded-lg">
+                <DropletIcon className="h-8 w-8 text-blood-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Blood Types Card */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-600">Blood Types</p>
+                <p className="text-3xl font-bold text-neutral-900">
+                  {new Set(stockSummary.map(s => s.blood_type)).size}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Near Expiry Card */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-600">Near Expiry</p>
+                <p className="text-3xl font-bold text-yellow-600">
+                  {stockSummary.reduce((sum, item) => sum + item.near_expiry_units, 0)}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <AlertCircle className="h-8 w-8 text-yellow-600" />
+              </div>
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">Expiring within 7 days</p>
+          </div>
+
+          {/* Critical Level Card */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-neutral-600">Critical Level</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {stockSummary.filter(item => item.critical_level).length}
+                </p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-lg">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+            </div>
+            <p className="text-xs text-neutral-500 mt-2">Below minimum threshold</p>
+          </div>
+        </div>
+
         {/* Add Blood Stock Button */}
         <div className="flex justify-end mb-6">
           <button
@@ -211,156 +224,10 @@ const BloodStockManagement: React.FC = () => {
         </div>
         {/* Add Stock Form Modal */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <h2 className="text-xl font-semibold text-neutral-900">Add New Blood Stock</h2>
-                <p className="text-sm text-neutral-600 mt-1">Enter blood stock details</p>
-              </div>
-              
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Blood Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Blood Type *
-                    </label>
-                    <select
-                      value={formData.blood_type}
-                      onChange={(e) => handleInputChange('blood_type', e.target.value)}
-                      required
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    >
-                      <option value="">Select Blood Type</option>
-                      {bloodTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Component */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Component *
-                    </label>
-                    <select
-                      value={formData.component}
-                      onChange={(e) => handleInputChange('component', e.target.value)}
-                      required
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    >
-                      <option value="">Select Component</option>
-                      {components.map((component) => (
-                        <option key={component} value={component}>{component}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Units Available */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Units Available *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.units_available}
-                      onChange={(e) => handleInputChange('units_available', parseInt(e.target.value) || 1)}
-                      required
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Donation Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Donation Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.donation_date}
-                      onChange={(e) => handleInputChange('donation_date', e.target.value)}
-                      required
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Expiry Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Expiry Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.expiry_date}
-                      onChange={(e) => handleInputChange('expiry_date', e.target.value)}
-                      required
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Batch Number */}
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Batch Number (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.batch_number}
-                      onChange={(e) => handleInputChange('batch_number', e.target.value)}
-                      placeholder="Auto-generated if empty"
-                      className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-neutral-500 mt-1">Leave empty to auto-generate</p>
-                  </div>
-                </div>
-
-                {/* Source Location */}
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Source Location
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.source_location}
-                    onChange={(e) => handleInputChange('source_location', e.target.value)}
-                    className="w-full border border-neutral-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blood-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Form Actions */}
-                <div className="flex justify-end space-x-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddForm(false);
-                      resetForm();
-                    }}
-                    className="btn btn-outline"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="btn btn-primary flex items-center"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Add Stock
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AddBloodComponent
+            onSuccess={handleAddSuccess}
+            onCancel={() => setShowAddForm(false)}
+          />
         )}
 
         {/* Blood Stock List */}

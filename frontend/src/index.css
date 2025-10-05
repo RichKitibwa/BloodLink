@@ -59,6 +59,12 @@
     font-weight: 500;
     transition: colors 200ms;
     outline: none;
+    cursor: pointer;
+  }
+  
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   
   .btn:focus {
@@ -198,8 +204,31 @@
     border-bottom: 2px solid var(--color-primary-600);
   }
   
+  .spinner-sm {
+    animation: spin 1s linear infinite;
+    border-radius: 50%;
+    height: 1rem;
+    width: 1rem;
+    border: 2px solid transparent;
+    border-bottom-color: currentColor;
+  }
+  
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
+  
+  /* Utility classes */
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+  
+  select, input[type="text"], input[type="number"], input[type="datetime-local"], textarea {
+    cursor: text;
+  }
+  
+  select {
+    cursor: pointer !important;
+  }
 }
+

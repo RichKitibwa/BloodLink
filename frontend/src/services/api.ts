@@ -178,12 +178,35 @@ export interface BloodSearchResult {
 
 export const bloodstockAPI = {
   async getStock(params?: any) {
-    const response = await api.get('/bloodstock', { params });
+    // Default to my_hospital_only=true unless explicitly set to false
+    const queryParams = {
+      my_hospital_only: true,
+      ...params
+    };
+    const response = await api.get('/bloodstock', { params: queryParams });
+    return response.data;
+  },
+
+  async addStock(stockData: {
+    blood_type: string;
+    component: string;
+    units_available: number;
+    expiry_date: string;
+    donation_date: string;
+    batch_number: string;
+    source_location?: string;
+  }) {
+    const response = await api.post('/bloodstock', stockData);
     return response.data;
   },
 
   async searchBloodStock(params: BloodSearchParams) {
-    const response = await api.get('/bloodstock/search', { params });
+    // Blood search always searches across ALL hospitals
+    const queryParams = {
+      my_hospital_only: false,
+      ...params
+    };
+    const response = await api.get('/bloodstock/search', { params: queryParams });
     return response.data;
   },
 
@@ -201,6 +224,87 @@ export const bloodstockAPI = {
 
   async getStockAlerts() {
     const response = await api.get('/bloodstock/alerts');
+    return response.data;
+  },
+};
+
+// Donation API
+export const donationsAPI = {
+  async scheduleDonations(data: { blood_stock_ids: number[]; reason?: string; notes?: string }) {
+    const response = await api.post('/donations/schedule', data);
+    return response.data;
+  },
+
+  async getAvailableDonations(params?: any) {
+    const response = await api.get('/donations/available', { params });
+    return response.data;
+  },
+
+  async getMySchedules() {
+    const response = await api.get('/donations/my-schedules');
+    return response.data;
+  },
+
+  async acceptDonation(scheduleId: number) {
+    const response = await api.post(`/donations/${scheduleId}/accept`);
+    return response.data;
+  },
+
+  async cancelSchedule(scheduleId: number) {
+    const response = await api.delete(`/donations/${scheduleId}`);
+    return response.data;
+  },
+
+  async getCriticalExpiryUnits() {
+    const response = await api.get('/donations/critical-expiry');
+    return response.data;
+  },
+};
+
+// Blood Requests API
+export const requestsAPI = {
+  async createRequest(data: any) {
+    const response = await api.post('/requests', data);
+    return response.data;
+  },
+
+  async getRequests(params?: any) {
+    const response = await api.get('/requests', { params });
+    return response.data;
+  },
+
+  async getPendingRequests() {
+    const response = await api.get('/requests/pending');
+    return response.data;
+  },
+
+  async getRequest(requestId: number) {
+    const response = await api.get(`/requests/${requestId}`);
+    return response.data;
+  },
+
+  async respondToRequest(requestId: number, data: any) {
+    const response = await api.post(`/requests/${requestId}/respond`, data);
+    return response.data;
+  },
+
+  async getRequestResponses(requestId: number) {
+    const response = await api.get(`/requests/${requestId}/responses`);
+    return response.data;
+  },
+
+  async acceptResponse(requestId: number, responseId: number) {
+    const response = await api.post(`/requests/${requestId}/responses/${responseId}/accept`);
+    return response.data;
+  },
+
+  async updateRequest(requestId: number, data: any) {
+    const response = await api.put(`/requests/${requestId}`, data);
+    return response.data;
+  },
+
+  async cancelRequest(requestId: number) {
+    const response = await api.delete(`/requests/${requestId}`);
     return response.data;
   },
 };

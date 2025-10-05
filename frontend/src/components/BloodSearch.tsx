@@ -14,6 +14,7 @@ import {
 import { bloodstockAPI } from '../services/api';
 import type { BloodSearchParams, BloodSearchResult } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import CreateBloodRequest from './CreateBloodRequest';
 
 const BloodSearch: React.FC = () => {
   const { } = useAuth(); // Keep for potential future use
@@ -27,6 +28,9 @@ const BloodSearch: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showCreateRequest, setShowCreateRequest] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState<number | null>(null);
+  const [searchScope, setSearchScope] = useState<'all' | 'my_hospital'>('all');
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   const components = ['Whole Blood', 'Packed Cells', 'Fresh Frozen Plasma', 'Platelets', 'Cryoprecipitate'];
@@ -35,7 +39,18 @@ const BloodSearch: React.FC = () => {
   const handleSearch = async () => {
     setIsLoading(true);
     try {
-      const results = await bloodstockAPI.searchBloodStock(searchParams);
+      // Use bloodstock search for my_hospital, searchBloodStock for all
+      let results;
+      if (searchScope === 'my_hospital') {
+        // Search within my hospital only
+        results = await bloodstockAPI.getStock({
+          ...searchParams,
+          my_hospital_only: true
+        });
+      } else {
+        // Search across all hospitals
+        results = await bloodstockAPI.searchBloodStock(searchParams);
+      }
       setSearchResults(results);
       setHasSearched(true);
     } catch (error) {
@@ -129,7 +144,7 @@ const BloodSearch: React.FC = () => {
               <button
                 onClick={handleSearch}
                 disabled={isLoading}
-                className="w-full btn btn-primary flex items-center justify-center"
+                className="w-full btn btn-primary flex items-center justify-center cursor-pointer"
               >
                 {isLoading ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -139,6 +154,43 @@ const BloodSearch: React.FC = () => {
                 Search
               </button>
             </div>
+          </div>
+
+          {/* Search Scope Toggle */}
+          <div className="flex items-center justify-between border-t pt-4 mt-4">
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium text-neutral-700">Search in:</label>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setSearchScope('my_hospital')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                    searchScope === 'my_hospital'
+                      ? 'bg-blood-600 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  <Building2 className="h-4 w-4 inline mr-1" />
+                  My Hospital Only
+                </button>
+                <button
+                  onClick={() => setSearchScope('all')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                    searchScope === 'all'
+                      ? 'bg-blood-600 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  <MapPin className="h-4 w-4 inline mr-1" />
+                  All Hospitals
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-sm text-blood-600 hover:text-blood-700 font-medium cursor-pointer"
+            >
+              {showFilters ? 'Hide' : 'Show'} Advanced Filters
+            </button>
           </div>
 
           {/* Advanced Filters */}
@@ -339,12 +391,21 @@ const BloodSearch: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col items-end space-y-2">
-                        <button className="btn btn-primary btn-sm">
+                        <button 
+                          onClick={() => {
+                            setSelectedHospital(result.hospital_id);
+                            setShowCreateRequest(true);
+                          }}
+                          className="btn btn-primary btn-sm"
+                        >
                           Request Blood
                         </button>
-                        <button className="btn btn-outline btn-sm">
+                        <a
+                          href={`mailto:${result.hospital_email}`}
+                          className="btn btn-outline btn-sm"
+                        >
                           Contact Hospital
-                        </button>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -387,6 +448,19 @@ const BloodSearch: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Request Modal */}
+      {showCreateRequest && (
+        <CreateBloodRequest
+          onClose={() => {
+            setShowCreateRequest(false);
+            setSelectedHospital(null);
+          }}
+          onSuccess={() => {
+            handleSearch(); // Refresh search results
+          }}
+        />
+      )}
     </div>
   );
 };
